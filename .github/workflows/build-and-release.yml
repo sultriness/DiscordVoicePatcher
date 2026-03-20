@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node-gyp and dependencies
+        run: |
+          npm install -g node-gyp
+          npm install
+
+      - name: Build native module
+        run: |
+          node-gyp rebuild --target=37.6.0 --arch=x64 --dist-url=https://electronjs.org/headers
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: patcher-artifacts
+          path: |
+            build/Release/patcher.node
+            patcher.ini
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: patcher-artifacts
+
+
+      - name: Get short commit hash
+        id: vars
+        shell: bash
+        run: echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ env.commit_hash }}
+          git push origin ${{ env.commit_hash }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.commit_hash }}
+          name: Release ${{ env.commit_hash }}
+          files: |
+            build/Release/patcher.node
+            patcher.ini
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
