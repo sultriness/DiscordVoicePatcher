@@ -64,5 +64,8 @@ const patcher = require('./build/Release/patcher.node');
   node-gyp rebuild
   ```
 
+## Credits
+Patterns and patch information were inspired by and adapted from [ProdHallow/Discord-Node-Patcher](https://github.com/ProdHallow/Discord-Node-Patcher) by ProdHallow. Many thanks for their work and open-source contribution.
+
 ## License
 This project is provided as-is. See LICENSE file if available.
