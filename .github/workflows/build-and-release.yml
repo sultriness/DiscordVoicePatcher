@@ -1,7 +1,10 @@
-name: Build and Release
+name: Build Test Prerelease
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -24,6 +27,10 @@ jobs:
         run: |
           node-gyp rebuild --target=37.6.0 --arch=x64 --dist-url=https://electronjs.org/headers
 
+      - name: Smoke test exports
+        run: |
+          node -e "const p=require('./build/Release/patcher.node'); if(typeof p.applyPatches!=='function'||typeof p.revertPatches!=='function') process.exit(1); console.log(Object.keys(p).sort().join(','))"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -32,7 +39,7 @@ jobs:
             build/Release/patcher.node
             patcher.ini
 
-  release:
+  prerelease:
     needs: build
     runs-on: windows-2022
     steps:
@@ -45,22 +52,16 @@ jobs:
           name: patcher-artifacts
 
       - name: Get short commit hash
-        id: vars
         shell: bash
         run: echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      - name: Create and push tag
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag ${{ env.commit_hash }}
-          git push origin ${{ env.commit_hash }}
-
-      - name: Create GitHub Release
+      - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.commit_hash }}
-          name: Release ${{ env.commit_hash }}
+          tag_name: test-${{ env.commit_hash }}
+          target_commitish: ${{ github.sha }}
+          name: Test Release ${{ env.commit_hash }}
+          prerelease: true
           files: |
             build/Release/patcher.node
             patcher.ini
